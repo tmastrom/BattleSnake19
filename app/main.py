@@ -49,161 +49,86 @@ def start():
 @bottle.post('/move')
 def move():
     data = bottle.request.json
+# check this out
+#https://stackoverflow.com/questions/15750681/efficient-way-to-store-and-search-coordinates-in-python
+        
+    directions = ['up', 'down', 'left', 'right']
+    direction = 'up'
+
+    directionlist = [[0, -1], [0, 1], [-1, 0], [1,0]]
+
+    up = [0, -1]
+    down = [0, 1]
+    left = [-1, 0]
+    right = [1,0]
 
     print 'turn ', data['turn']
 
-    #print(json.dumps(data))
+    # add board boundaries to the list of places not to go
+    # dont is a list of 2 element lists 
+    xaxis = []
+    yaxis = []
+    dont = []
 
-    # board limits
-    height = data["board"]["height"]
-    width = data["board"]["width"]
+    for x in range(data["board"]["width"]+1):
+        xaxis.append(x)
+    for x in range(data["board"]["height"]+1):
+        yaxis.append(x)
+    #print xaxis
+    #print yaxis
+
+    dont = [[x, y] for x in xaxis for y in yaxis]
+
+    #print dont
 
     # my snake head location
-    head_x = data["you"]["body"][0]["x"]
-    head_y = data["you"]["body"][0]["y"]
+    head = [data["you"]["body"][0]["x"], data["you"]["body"][0]["y"]]
 
-    print 'head', head_x, head_y
-
-    # location I am coming from 
-    neck_x = data["you"]["body"][1]["x"]
-    neck_y = data["you"]["body"][1]["y"]
-
-    # list places not to go 
-    dont_x = [neck_x, 0, 15]
-    dont_y = [neck_y, 0, 15]
+    # grow the list of coordinates not to go
+    # populate the list with snakes on the board including myself
+    # differentiate between me and others??
+    # save the head/tail location to see where they are moving??
+    for i in data["board"]["snakes"]:
+        for j in i['body']:
+            pos = [j['x'],j['y']]
+            dont.append(pos)
+    #print dont  
 
     # food location
-    food_x = data["board"]['food'][0]['x']
-    food_y = data["board"]['food'][0]['y']
+    food = [data["board"]["food"][0]["x"], data["board"]["food"][0]["y"]]
 
-    directions = ['up', 'down', 'left', 'right']
-    
-    direction = 'up'
+    #print 'head', head
+    #print 'food', food  
 
     # find food direction 
-    x_dist = head_x - food_x
-    y_dist = head_y - food_y 
+    negfood = [-x for x in food]
 
-    print 'x_dist ', x_dist
-    print 'y_dist ', y_dist
+    dist = [sum(x) for x in zip(head, negfood)]  # this only works for 1 food
+    print dist 
+    # return index of max(dist) to decide x or y move
+    ind = dist.index(max(dist))
+    print 'index', ind
 
-    # determine which direction to move toward food
-    def food_dir_x(x):
-        if x > 0:
-            direction = 'left'  
-        elif x < 0:
-            direction = 'right'
-        return direction   
-        print 'food_dir_x', direction
+    direc = [0, 0] # direction vector
+    # set the direction vector 
+    if max(dist) < 0:
+        direc[ind] = -1
+    else: direc[ind] = 1
+    print 'direc', direc
+
+    # check to see if moving that direction is allowed 
+    next_pos = [sum(x) for x in zip(head, direc)]
+    print 'next position', next_pos
+
+    if next_pos in dont:
+        print 'dont go here'
+        direction = 'left'
+        # check for boundary 
+    else: 
+        print 'go here'
+        direction = directions[directionlist.index(direc)]
         
-    
-    def food_dir_y(y):
-        if y > 0:
-            direction = 'up'
-            
-        elif y < 0:
-            direction = 'down'
-        return direction    
-        print 'food_dir_y', direction
 
-
-    # final check that chosen direction is ok 
-    def check_dir_x(dir, head, dont):
-        if dir == 'right':
-            if head + 1 not in dont:
-                print 'good to go right'
-                return dir
-            elif head + 1 in dont:
-                print 'Dont go right!'
-                # actually do something
-                if head - 1 not in dont:
-                    print 'good to go left tho'
-                    dir = 'left'
-                    return dir # will this exit check_dir_x??? make sure dir is not reassigned again
-                elif head - 1 in dont:
-                    print 'Dont go left either!'
-                    # check up/down
-        if dir == 'left':
-            if head -1 not in dont:
-                print 'good to go left'
-                return dir
-            elif head - 1 in dont:
-                print 'Dont go left!'
-                if head + 1 not in dont:
-                    'good to go right tho'
-                    dir = 'right'
-                    return dir
-                else: print "dont go left either"
-                    # check up/down
-
-    def check_dir_y(dir, head, dont):
-        if dir == 'up':
-            if head -1 not in dont:
-                print 'good to go up'
-                return dir
-            elif head -1 in dont:
-                print "dont go up!"
-                if head +1 not in dont:
-                    print 'good to go down tho'
-                    dir = 'down'
-                    return dir
-                else:
-                    print 'dont go down either'
-                    # check right/left
-        if dir == 'down':
-            if head + 1 not in dont:
-                print 'good to go down'
-                return dir
-            elif head + 1 in dont:
-                print 'dont go down!'
-                if head -1 not in dont:
-                    print 'good to go up tho'
-                    dir = 'up'
-                    return dir
-                else: print 'dont go up either'
-            return dir
-                    # check right/left
-
-
-    # move along the axis that is furthest from food
-    if abs(x_dist) >= abs(y_dist):
-        direction = food_dir_x(x_dist)
-    else: direction = food_dir_y(y_dist)
-
-    if direction == 'right' or direction == 'left':
-        print 'entered checkdir'
-        direction = check_dir_x(direction, head_x, dont_x)
-    if direction == 'up' or direction == 'down':
-        print 'entered checkdir'
-        direction = check_dir_y(direction, head_y, dont_y)
-    
-    '''
-    # if the snake is going up 
-    if direction == 'up':
-        # if the snake will hit a wall on the next turn
-        if head_y - 1 in dont_y: 
-            if head_x + 1 in dont_x:
-                direction = 'left'
-            else: direction = 'right'
-    
-    if direction == 'down':
-        if head_y + 1 in dont_y:
-            if head_x + 1 in dont_x:
-                direction = 'left'
-            else: direction = 'right'
-
-    if direction == 'right':
-        if head_x + 1 in dont_x:
-            if head_y + 1 in dont_y:
-                direction = 'up'
-            else: direction = 'down'
-
-    if direction == 'left':
-        if head_x - 1 in dont_x:
-            if head_y + 1 in dont_y:
-                direction = 'up'
-            else: direction = 'down'
-'''
     print 'direction ', direction
 
     return move_response(direction)
