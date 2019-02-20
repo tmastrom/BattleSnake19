@@ -60,7 +60,7 @@ def move():
     up = [0, -1]
     down = [0, 1]
     left = [-1, 0]
-    right = [1,0]
+    right = [1, 0]
 
     print 'turn ', data['turn']
 
@@ -74,15 +74,18 @@ def move():
         xaxis.append(x)
     for x in range(data["board"]["height"]+1):
         yaxis.append(x)
-    #print xaxis
-    #print yaxis
 
-    dont = [[x, y] for x in xaxis for y in yaxis]
+    leftside = [[0, y] for y in yaxis]
+    rightside = [[data["board"]["width"], y] for y in yaxis]
+    top = [[x, 0] for x in xaxis]
+    bottom = [[x,data["board"]["height"]]for x in xaxis]
 
+    dont = top + bottom + rightside + leftside
     #print dont
 
     # my snake head location
     head = [data["you"]["body"][0]["x"], data["you"]["body"][0]["y"]]
+    print 'Head', head
 
     # grow the list of coordinates not to go
     # populate the list with snakes on the board including myself
@@ -91,9 +94,12 @@ def move():
     for i in data["board"]["snakes"]:
         for j in i['body']:
             pos = [j['x'],j['y']]
-            dont.append(pos)
+            dont += pos
     #print dont  
-
+    for i in data["you"]["body"]:
+        pos = [i['x'],i['y']]
+        dont += pos 
+    print dont, 'DONT'
     # food location
     food = [data["board"]["food"][0]["x"], data["board"]["food"][0]["y"]]
 
@@ -104,17 +110,19 @@ def move():
     negfood = [-x for x in food]
 
     dist = [sum(x) for x in zip(head, negfood)]  # this only works for 1 food
-    print dist 
+    print 'distance x,y', dist 
     # return index of max(dist) to decide x or y move
-    ind = dist.index(max(dist))
+    distabs = [abs(x) for x in dist]
+    print distabs
+    ind = distabs.index(max(distabs))
     print 'index', ind
 
     direc = [0, 0] # direction vector
     # set the direction vector 
-    if max(dist) < 0:
-        direc[ind] = -1
-    else: direc[ind] = 1
-    print 'direc', direc
+    if dist[ind] < 0:
+        direc[ind] = 1
+    else: direc[ind] = -1
+    print 'direction vector', direc
 
     # check to see if moving that direction is allowed 
     next_pos = [sum(x) for x in zip(head, direc)]
@@ -122,7 +130,7 @@ def move():
 
     if next_pos in dont:
         print 'dont go here'
-        direction = 'left'
+        direction = 'left'  # goes left if next move is invalid
         # check for boundary 
     else: 
         print 'go here'
